@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080808">
+  <meta name="description" content="MANGA KABOOM! — Interactive Japanese Comic Experience">
+  <title>MANGA KABOOM! — Interactive Japanese Comic Experience</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Permanent+Marker&family=Kosugi+Maru&family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            electricBlue: '#00AEEF', brightYellow: '#FFF000',
+            hotPink: '#FF36A6', vividRed: '#ED1C24',
+            neonGreen: '#75E600', mangaBlack: '#080808',
+            mangaWhite: '#FFFFFF'
+          },
+          fontFamily: {
+            bangers: ['Bangers', 'cursive'],
+            marker: ['Permanent Marker', 'cursive'],
+            kosugi: ['Kosugi Maru', 'sans-serif'],
+            rubik: ['Rubik', 'sans-serif']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 1rem; }
+    body {
+      margin: 0; background: #080808; color: #fff;
+      font-family: 'Rubik', sans-serif; overflow-x: hidden;
+      cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='%23FFF000' stroke='%23080808' stroke-width='2'%3E%3Cpolygon points='0,0 24,10 10,14 6,24'/%3E%3C/svg%3E"), auto;
+    }
+    button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
+    button { touch-action: manipulation; }
+    .screentone {
+      background-image: radial-gradient(#FF36A6 15%, transparent 16%), radial-gradient(#FFF000 15%, transparent 16%);
+      background-size: 16px 16px; background-position: 0 0, 8px 8px; opacity: .15;
+    }
+    .halftone-dots {
+      background-image: radial-gradient(#00AEEF 20%, transparent 20%);
+      background-size: 10px 10px;
+    }
+    .grunge-bg {
+      background: linear-gradient(135deg, rgba(237,28,36,.1), rgba(0,174,239,.1)),
+      repeating-linear-gradient(45deg, #080808, #080808 10px, #121212 10px, #121212 20px);
+    }
+    .comic-border { border: 4px solid #080808; box-shadow: 6px 6px 0 #FFF000; }
+    .comic-border-pink { border: 4px solid #080808; box-shadow: 6px 6px 0 #FF36A6; }
+    .comic-border-blue { border: 4px solid #080808; box-shadow: 6px 6px 0 #00AEEF; }
+    .comic-speech {
+      position: relative; background: #fff; color: #080808;
+      border: 3px solid #080808; padding: 15px; border-radius: 20px;
+    }
+    .comic-speech:after {
+      content: ''; position: absolute; bottom: -15px; left: 30px;
+      border-width: 15px 15px 0; border-style: solid;
+      border-color: #fff transparent; width: 0;
+    }
+    .comic-speech:before {
+      content: ''; position: absolute; bottom: -20px; left: 27px;
+      border-width: 17px 17px 0; border-style: solid;
+      border-color: #080808 transparent; width: 0;
+    }
+    @keyframes pulseGlow { 0%,100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+    @keyframes popIn { from { opacity: 0; transform: scale(.8) rotate(-3deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+    @keyframes shake {
+      0%,100% { transform: translateX(0) rotate(0); }
+      20% { transform: translateX(-5px) rotate(-1deg); }
+      40% { transform: translateX(5px) rotate(1deg); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+    .animate-pulse-glow { animation: pulseGlow 2s infinite; }
+    .pop-in { animation: popIn .28s ease-out both; }
+    .shake { animation: shake .35s ease-in-out; }
+    .char-card[aria-pressed="true"] { outline: 4px solid #ED1C24; outline-offset: 2px; transform: translateY(-3px); }
+    .char-card:focus-visible, button:focus-visible, a:focus-visible {
+      outline: 3px dashed #00AEEF; outline-offset: 4px;
+    }
+    .panel-card { transition: transform .2s ease, box-shadow .2s ease; }
+    .panel-card:hover { transform: translateY(-6px) rotate(-.5deg); box-shadow: 8px 8px 0 #FFF000; }
+    #loading-screen { transition: opacity .45s ease, visibility .45s ease; }
+    #loading-screen.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    #retro-popup { transition: opacity .2s ease; }
+    #retro-popup.hidden { display: none; }
+    #retro-popup:not(.hidden) { display: flex; }
+    #toast {
+      position: fixed; left: 50%; bottom: 1.25rem; z-index: 80;
+      transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+      transition: .25s ease; max-width: calc(100vw - 2rem);
+    }
+    #toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .comic-burst { animation: popIn .25s ease-out both; }
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: #080808; border-left: 2px solid #FFF000; }
+    ::-webkit-scrollbar-thumb { background: #ED1C24; border: 2px solid #080808; }
+    @media (max-width: 640px) {
+      body { cursor: auto; }
+      .comic-border, .comic-border-pink, .comic-border-blue { box-shadow: 4px 4px 0 #FFF000; }
+      #char-frame { height: 330px; }
+      .mobile-stack { flex-direction: column; align-items: stretch; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important; animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important; transition-duration: .01ms !important;
+      }
+    }
+  </style>
+</head>
+
+<body class="relative">
+  <!-- LOADING SCREEN -->
+  <div id="loading-screen" class="fixed inset-0 z-[100] bg-mangaBlack flex flex-col items-center justify-center p-5">
+    <div class="text-6xl sm:text-8xl md:text-9xl font-bangers text-brightYellow tracking-wider text-center">MANGA KABOOM!</div>
+    <div class="font-kosugi text-hotPink mt-4 text-center text-sm sm:text-xl">読み込み中... LOADING THE UNIVERSE</div>
+    <div class="w-64 max-w-full h-6 bg-white border-4 border-black mt-6 overflow-hidden">
+      <div id="loading-bar" class="h-full bg-vividRed w-0 transition-all duration-150"></div>
+    </div>
+    <p id="loading-status" class="font-kosugi text-xs text-gray-400 mt-2">INITIALIZING COMIC ENGINE...</p>
+    <button id="start-reading" class="mt-8 px-8 py-3 bg-electricBlue font-bangers text-2xl text-black border-4 border-black shadow-[4px_4px_0px_#FFF000] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">
+      START READING
+    </button>
+  </div>
+
+  <!-- TOP PROGRESS -->
+  <div class="fixed top-0 left-0 h-2 bg-vividRed z-[90] transition-all duration-150" id="scroll-progress" style="width:0%"></div>
+
+  <!-- AUDIO CONTROL -->
+  <div class="fixed top-4 right-3 sm:right-4 z-40 flex gap-2 items-center">
+    <button id="audio-btn" aria-pressed="false" class="bg-brightYellow text-black font-bangers px-3 sm:px-4 py-2 border-2 border-black shadow-[3px_3px_0px_#FF36A6] text-base sm:text-lg hover:bg-hotPink hover:text-white transition-all">
+      ♫ BGM: OFF
+    </button>
+    <span class="hidden lg:block bg-white text-black font-kosugi text-xs px-3 py-2 border-2 border-black">
+      AUDIO: <span id="vol-status">MUTED</span>
+    </span>
+  </div>
+
+  <!-- FLOATING ACTIONS -->
+  <div class="fixed bottom-4 right-3 sm:bottom-6 sm:right-6 z-40 flex flex-col gap-3 items-end">
+    <button id="kaboom-btn" class="bg-hotPink text-white font-bangers text-lg sm:text-xl px-4 py-3 rounded-full border-4 border-black shadow-[4px_4px_0px_#FFF000] hover:rotate-6 transition-transform">
+      💥 KABOOM!
+    </button>
+    <button id="back-to-top" class="hidden bg-brightYellow text-black font-bangers text-lg p-3 border-4 border-black shadow-[4px_4px_0px_#00AEEF] hover:-translate-y-1 transition-all" aria-label="Kembali ke atas">
+      ▲ TOP
+    </button>
+  </div>
+
+  <!-- RETRO POPUP -->
+  <div id="retro-popup" class="fixed inset-0 z-[110] hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="popup-title">
+    <div id="popup-window" class="w-full max-w-md bg-brightYellow border-4 border-black shadow-[10px_10px_0px_#ED1C24] relative">
+      <div class="bg-electricBlue text-black px-4 py-2 font-bangers text-2xl flex justify-between items-center border-b-4 border-black">
+        <span id="popup-title">⚡ SYSTEM NOTIFICATION ⚡</span>
+        <button id="popup-close-x" class="bg-vividRed text-white px-3 py-1 font-bold border-2 border-black hover:bg-black" aria-label="Tutup popup">X</button>
+      </div>
+      <div class="p-5 sm:p-6 bg-white text-black font-kosugi">
+        <div class="flex items-start gap-4 mb-5">
+          <span id="popup-icon" class="text-4xl" aria-hidden="true">🐱‍👤</span>
+          <p id="popup-message" class="text-base sm:text-lg font-bold leading-relaxed">あなたはご存知? (Did you know?)</p>
+        </div>
+        <div class="flex justify-end">
+          <button id="popup-ack" class="bg-hotPink text-white font-bangers px-6 py-2 border-3 border-black shadow-[3px_3px_0px_#080808] hover:translate-x-1">ACKNOWLEDGE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="bg-brightYellow text-black font-bangers text-lg sm:text-xl px-5 py-3 border-4 border-black shadow-[5px_5px_0_#FF36A6]" role="status" aria-live="polite"></div>
+
+  <!-- 1. INTRO -->
+  <header class="min-h-screen relative flex flex-col justify-between p-4 sm:p-6 md:p-12 grunge-bg overflow-hidden border-b-8 border-black">
+    <div class="absolute inset-0 screentone pointer-events-none"></div>
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-black p-4 border-4 border-brightYellow shadow-[6px_6px_0px_#FF36A6] relative z-10">
+      <div>
+        <h1 class="text-4xl sm:text-5xl md:text-6xl font-bangers text-brightYellow tracking-widest">INTRODUCTION // 序章</h1>
+        <p class="font-kosugi text-electricBlue text-xs sm:text-sm">第 1 話 — DIGITAL MANGA REVOLUTION</p>
+      </div>
+      <div class="bg-vividRed text-white font-bangers px-5 py-2 text-xl sm:text-2xl border-2 border-white rotate-2">VOL. 2026 // ISSUE #01</div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-6 my-auto relative z-10 py-10 md:py-12">
+      <div class="md:col-span-7 bg-white text-black p-5 sm:p-7 md:p-8 comic-border-pink relative">
+        <div class="absolute -top-5 left-3 sm:-left-5 bg-electricBlue text-black font-bangers text-xl sm:text-2xl px-4 py-1 border-3 border-black -rotate-2">STORY OVERVIEW</div>
+        <p class="font-rubik text-base sm:text-lg md:text-xl font-bold leading-relaxed mt-3">
+          Selamat datang di era baru komik digital! <span class="bg-brightYellow px-2 py-1 border border-black">MANGA KABOOM!</span>
+          menggabungkan estetika retro manga Jepang tahun 90-an dengan interaktivitas web modern.
+          Rasakan sensasi membaca penuh warna, efek visual, dan karakter dinamis langsung dari browser Anda!
+        </p>
+        <div class="mt-6 flex flex-wrap gap-3">
+          <span class="bg-neonGreen text-black font-bangers px-3 py-2 border-2 border-black text-lg">#CYBER_PUNK</span>
+          <span class="bg-hotPink text-white font-bangers px-3 py-2 border-2 border-black text-lg">#ACTION_MANGA</span>
+          <span class="bg-electricBlue text-black font-bangers px-3 py-2 border-2 border-black text-lg">#INTERACTIVE</span>
+        </div>
+        <button id="explore-btn" class="mt-7 bg-vividRed text-white font-bangers text-xl px-6 py-3 border-4 border-black shadow-[4px_4px_0_#080808] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all">
+          EXPLORE THE CAST ↓
+        </button>
+      </div>
+
+      <div class="md:col-span-5 flex flex-col justify-center items-center">
+        <div class="comic-speech w-full max-w-sm mb-6 text-center shadow-[6px_6px_0px_#00AEEF]">
+          <p class="font-bangers text-2xl text-vividRed">"SCROLL DOWN TO UNLOCK THE LEGEND!"</p>
+        </div>
+        <div class="w-full h-56 sm:h-64 bg-gradient-to-br from-brightYellow to-hotPink comic-border flex items-center justify-center relative overflow-hidden group">
+          <div class="absolute inset-0 halftone-dots opacity-40"></div>
+          <span class="text-8xl sm:text-9xl group-hover:scale-125 transition-transform duration-300" aria-hidden="true">💥</span>
+          <div class="absolute bottom-2 right-2 bg-black text-brightYellow font-bangers px-3 py-1 text-lg border-2 border-white">ARTWORK #01</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-brightYellow text-black p-3 sm:p-4 font-bangers text-lg sm:text-2xl text-center border-4 border-black shadow-[4px_4px_0px_#ED1C24] relative z-10 flex flex-wrap justify-between items-center gap-2">
+      <span>⚡ SYSTEM READY ⚡</span>
+      <a href="#character-section" class="animate-pulse underline underline-offset-4">↓ SCROLL FOR CHARACTERS ↓</a>
+      <span>⚡ 2026 EDITION ⚡</span>
+    </div>
+  </header>
+
+  <!-- 2. CHARACTER DATABASE -->
+  <section id="character-section" class="min-h-screen relative p-4 sm:p-6 md:p-12 bg-mangaBlack overflow-hidden border-b-8 border-black">
+    <div class="absolute inset-0 screentone pointer-events-none"></div>
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-electricBlue p-4 border-4 border-black shadow-[6px_6px_0px_#FFF000] relative z-10 mb-8">
+      <div>
+        <h2 class="text-3xl sm:text-4xl md:text-6xl font-bangers text-black tracking-widest">CHARACTER DATABASE // 登場人物</h2>
+        <p class="font-kosugi text-white text-xs sm:text-sm font-bold">SELECT YOUR HERO OR VILLAIN</p>
+      </div>
+      <div class="flex gap-3 self-end lg:self-auto">
+        <button id="prev-char" class="w-12 h-12 bg-black text-brightYellow font-bangers text-2xl rounded-full border-3 border-white hover:bg-vividRed hover:text-white transition-all shadow-[3px_3px_0px_#FFF000]" aria-label="Karakter sebelumnya">◀</button>
+        <button id="next-char" class="w-12 h-12 bg-black text-brightYellow font-bangers text-2xl rounded-full border-3 border-white hover:bg-vividRed hover:text-white transition-all shadow-[3px_3px_0px_#FFF000]" aria-label="Karakter berikutnya">▶</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-10 relative z-10" id="thumbnail-container" aria-label="Pilih karakter"></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
+      <div class="lg:col-span-5 flex flex-col items-center">
+        <div class="w-full relative">
+          <div id="char-frame" class="w-full h-[330px] sm:h-[430px] md:h-[500px] bg-vividRed comic-border flex items-center justify-center relative overflow-hidden transition-colors duration-300">
+            <div class="absolute inset-0 halftone-dots opacity-30"></div>
+            <span id="char-emoji" class="relative z-10 text-8xl sm:text-9xl drop-shadow-[8px_8px_0px_#080808] transition-transform duration-300 hover:scale-110" aria-label="Ilustrasi karakter">🦊</span>
+            <div class="absolute top-4 left-4 bg-black text-brightYellow font-bangers px-4 py-2 text-xl sm:text-2xl border-2 border-white">FILE #<span id="char-id">01</span></div>
+            <div class="absolute bottom-3 left-3 bg-white text-black font-bangers px-3 py-1 text-lg border-2 border-black">CLASSIFIED CHARACTER</div>
+          </div>
+          <div class="absolute -bottom-5 -right-2 sm:-right-4 bg-brightYellow text-black font-bangers text-lg sm:text-2xl px-4 sm:px-6 py-2 border-4 border-black shadow-[4px_4px_0px_#FF36A6] rotate-2">
+            <span id="char-name-badge">KENJI "BLADE"</span>
+          </div>
+        </div>
+        <p class="font-kosugi text-xs text-gray-400 mt-10 text-center">TIP: Use ◀ ▶, keyboard arrows, or swipe to change character.</p>
+      </div>
+
+      <div class="lg:col-span-7 flex flex-col justify-between">
+        <div id="character-info" class="bg-white text-black p-5 sm:p-7 md:p-8 comic-border-blue relative mt-3 lg:mt-0">
+          <div class="bg-black text-brightYellow font-bangers text-2xl sm:text-3xl md:text-4xl px-5 py-3 border-4 border-white mb-6 -mt-10 shadow-[4px_4px_0px_#FF36A6] inline-block">
+            <span id="char-title-name">KENJI ROKUUDO</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6 font-kosugi text-sm">
+            <div class="bg-brightYellow p-3 border-3 border-black shadow-[3px_3px_0px_#080808]"><strong>NICKNAME:</strong> <span id="char-nickname" class="font-bold text-vividRed">The Neon Samurai</span></div>
+            <div class="bg-electricBlue p-3 border-3 border-black shadow-[3px_3px_0px_#080808]"><strong>AGE:</strong> <span id="char-age" class="font-bold">21 Years Old</span></div>
+          </div>
+          <div class="space-y-4 font-rubik">
+            <div class="border-2 border-black p-3 bg-gray-50">
+              <strong class="text-vividRed font-bangers text-xl">PERSONALITY:</strong>
+              <p id="char-personality" class="mt-1 text-sm sm:text-base">Bersemangat tinggi, tidak kenal takut, dan selalu siap menghadapi tantangan cyber-punk di distrik Neo-Tokyo.</p>
+            </div>
+            <div class="border-2 border-black p-3 bg-gray-50">
+              <strong class="text-electricBlue font-bangers text-xl">BACKGROUND STORY:</strong>
+              <p id="char-background" class="mt-1 text-sm sm:text-base">Mantan hacker underground yang bermutasi setelah terkena radiasi gelombang kuantum misterius di menara pusat.</p>
+            </div>
+            <div class="border-2 border-black p-3 bg-gray-50">
+              <strong class="text-hotPink font-bangers text-xl">SPECIAL ABILITIES:</strong>
+              <p id="char-abilities" class="mt-1 text-sm sm:text-base">Plasma Blade Dash, Time-Freeze Flash, dan Cybernetic Telepathy.</p>
+            </div>
+            <div class="border-2 border-black p-3 bg-gray-50">
+              <strong class="text-black font-bangers text-xl">INTERESTING FACTS:</strong>
+              <p id="char-facts" class="mt-1 text-sm sm:text-base">Sangat menyukai ramen instan pedas dan tidak bisa tidur tanpa musik retro 80-an.</p>
+            </div>
+          </div>
+        </div>
+        <button id="inspect-btn" class="mt-8 w-full bg-brightYellow text-black font-bangers text-xl sm:text-2xl py-3 border-4 border-black shadow-[4px_4px_0px_#ED1C24] hover:bg-hotPink hover:text-white transition-all">
+          ⚡ INSPECT SECRET FILES ⚡
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. ACTION PANELS -->
+  <section class="py-14 sm:py-16 px-4 sm:px-6 md:px-12 grunge-bg relative border-b-8 border-black">
+    <div class="absolute inset-0 screentone pointer-events-none"></div>
+    <div class="max-w-6xl mx-auto relative z-10">
+      <div class="bg-vividRed text-white font-bangers text-3xl sm:text-5xl px-5 py-4 border-4 border-black shadow-[6px_6px_0px_#FFF000] mb-8 text-center -rotate-1">
+        💥 ACTION PANELS & EASTER EGGS 💥
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <button class="panel-card panel-trigger text-left bg-white text-black p-5 comic-border" data-title="SECRET #01: THE NINJA" data-message="Fun fact: Manga modern berkembang dari tradisi ilustrasi dan cerita bergambar Jepang. Scroll, explore, dan temukan detail kecil di setiap panel!" data-icon="🐱‍🏍">
+          <div class="h-36 sm:h-40 bg-brightYellow comic-border flex items-center justify-center text-6xl mb-4">🐱‍🏍</div>
+          <h3 class="font-bangers text-2xl text-vividRed">SECRET #01: THE NINJA</h3>
+          <p class="font-kosugi text-sm mt-2">Klik untuk membuka pesan rahasia dari arsip manga.</p>
+          <span class="inline-block mt-4 font-bangers text-sm bg-black text-brightYellow px-3 py-1">TAP TO UNLOCK ↗</span>
+        </button>
+        <button class="panel-card panel-trigger text-left bg-white text-black p-5 comic-border-pink" data-title="SECRET #02: CYBERNETICS" data-message="SYSTEM MESSAGE: Teknologi adalah alat. Imajinasi adalah kekuatannya. Terus eksplorasi dunia digital!" data-icon="🤖">
+          <div class="h-36 sm:h-40 bg-electricBlue comic-border flex items-center justify-center text-6xl mb-4">🤖</div>
+          <h3 class="font-bangers text-2xl text-electricBlue">SECRET #02: CYBERNETICS</h3>
+          <p class="font-kosugi text-sm mt-2">Klik untuk memicu pesan rahasia dari masa depan digital.</p>
+          <span class="inline-block mt-4 font-bangers text-sm bg-black text-brightYellow px-3 py-1">TAP TO UNLOCK ↗</span>
+        </button>
+        <button class="panel-card panel-trigger text-left bg-white text-black p-5 comic-border-blue" data-title="SECRET #03: LIGHTNING" data-message="QUANTUM ENERGY DETECTED! Kamu berhasil menemukan panel tersembunyi. Energi KABOOM sekarang ada di tanganmu!" data-icon="⚡">
+          <div class="h-36 sm:h-40 bg-hotPink comic-border flex items-center justify-center text-6xl mb-4">⚡</div>
+          <h3 class="font-bangers text-2xl text-hotPink">SECRET #03: LIGHTNING</h3>
+          <p class="font-kosugi text-sm mt-2">Klik untuk melepaskan energi petir kuantum.</p>
+          <span class="inline-block mt-4 font-bangers text-sm bg-black text-brightYellow px-3 py-1">TAP TO UNLOCK ↗</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="bg-mangaBlack text-white p-8 text-center font-kosugi relative overflow-hidden border-t-4 border-brightYellow">
+    <div class="absolute inset-0 screentone pointer-events-none"></div>
+    <div class="relative z-10">
+      <h2 class="font-bangers text-4xl text-brightYellow tracking-widest mb-2">MANGA KABOOM!</h2>
+      <p class="text-xs sm:text-sm text-gray-400 mb-4">Interactive Japanese Comic Book Experience © <span id="current-year">2026</span>.</p>
+      <div class="flex justify-center flex-wrap gap-3 text-xs">
+        <span class="bg-electricBlue text-black px-3 py-1 font-bold border border-white">HTML5</span>
+        <span class="bg-hotPink text-white px-3 py-1 font-bold border border-white">CSS3</span>
+        <span class="bg-brightYellow text-black px-3 py-1 font-bold border border-white">VANILLA JS</span>
+      </div>
+      <button id="footer-secret" class="mt-6 text-gray-500 hover:text-brightYellow text-xs underline underline-offset-4">A tiny secret lives here...</button>
+    </div>
+  </footer>
+
+  <script>
+    'use strict';
+
+    // CHARACTER DATABASE
+    const characters = [
+      {
+        id: '01', name: 'KENJI ROKUUDO', badgeName: "KENJI 'BLADE'",
+        nickname: 'The Neon Samurai', age: '21 Years Old',
+        personality: 'Bersemangat tinggi, tidak kenal takut, dan selalu siap menghadapi tantangan cyber-punk di distrik Neo-Tokyo.',
+        background: 'Mantan hacker underground yang bermutasi setelah terkena radiasi gelombang kuantum misterius di menara pusat.',
+        abilities: 'Plasma Blade Dash, Time-Freeze Flash, dan Cybernetic Telepathy.',
+        facts: 'Sangat menyukai ramen instan pedas dan tidak bisa tidur tanpa musik retro 80-an.',
+        emoji: '🦊', color: '#ED1C24'
+      },
+      {
+        id: '02', name: 'AIKO TACHIBANA', badgeName: "AIKO 'CYBER'",
+        nickname: 'Quantum Empress', age: '19 Years Old',
+        personality: 'Tenang, jenius, kalkulatif, namun memiliki sisi emosional yang tersembunyi di balik kacamata visornya.',
+        background: 'Arsitek sistem jaringan utama Neo-Tokyo yang melarikan diri setelah mengetahui konspirasi korporasi raksasa.',
+        abilities: 'Hologram Illusion, Neural Hacking, dan Gravity Manipulation.',
+        facts: 'Kolektor kaset game retro langka dan memelihara kucing cyber bermata merah.',
+        emoji: '🐱‍👤', color: '#00AEEF'
+      },
+      {
+        id: '03', name: 'DAISUKE ONI', badgeName: "DAISUKE 'TITAN'",
+        nickname: 'The Iron Beast', age: '28 Years Old',
+        personality: 'Tegas, pelindung yang tangguh, memiliki rasa keadilan yang tinggi dan setia kawan.',
+        background: 'Mantan tentara elit pasukan khusus yang diubah menjadi cyborg tempur setelah pertempuran besar di sektor 7.',
+        abilities: 'Titanium Armor Boost, Seismic Ground Slam, dan Energy Shield.',
+        facts: 'Ahli merakit senjata mekanik manual dan hobi merawat bonsai digital.',
+        emoji: '👹', color: '#FF36A6'
+      },
+      {
+        id: '04', name: 'MEI LING', badgeName: "MEI 'PHANTOM'",
+        nickname: 'Shadow Whisper', age: '18 Years Old',
+        personality: 'Misterius, lincah, penuh teka-teki, dan selalu muncul tanpa diduga di saat yang tepat.',
+        background: 'Agen rahasia dari sindikat bayangan timur yang mencari kebenaran tentang asal-usul artefak kuno.',
+        abilities: 'Shadow Stealth, Teleportasi Jarak Pendek, dan Poison Dagger.',
+        facts: 'Penggemar berat teh hijau matcha tradisional dan ahli seni origami beracun.',
+        emoji: '⚡', color: '#FFF000'
+      }
+    ];
+
+    const $ = (id) => document.getElementById(id);
+    let currentIndex = 0;
+    let loadingDismissed = false;
+    let toastTimer = null;
+    let audioContext = null;
+    let audioNodes = [];
+    let audioPlaying = false;
+    let popupPreviousFocus = null;
+    let easterEggCount = 0;
+    let touchStartX = null;
+
+    // Small helper: update text without injecting HTML.
+    function setText(id, value) { $(id).textContent = value; }
+
+    // LOADING SCREEN
+    function dismissLoading() {
+      if (loadingDismissed) return;
+      loadingDismissed = true;
+      $('loading-screen').classList.add('is-hidden');
+      window.setTimeout(() => {
+        $('loading-screen').style.display = 'none';
+        showPopup('WELCOME TO THE UNKNOWN!', 'Selamat datang di MANGA KABOOM! Siapkan dirimu untuk menjelajahi dunia penuh kejutan.', '💥');
+      }, 480);
+    }
+
+    function startLoading() {
+      const bar = $('loading-bar');
+      const status = $('loading-status');
+      const start = performance.now();
+      const duration = 950;
+      function tick(now) {
+        const progress = Math.min(100, ((now - start) / duration) * 100);
+        bar.style.width = progress + '%';
+        if (progress < 100 && !loadingDismissed) {
+          requestAnimationFrame(tick);
+        } else {
+          status.textContent = 'UNIVERSE READY!';
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+
+    // CHARACTER THUMBNAILS
+    function renderThumbnails() {
+      const container = $('thumbnail-container');
+      container.replaceChildren();
+
+      characters.forEach((char, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'char-card p-3 sm:p-4 bg-white text-black font-bangers text-center border-4 border-black transition-all hover:scale-[1.03] shadow-[4px_4px_0px_#00AEEF]';
+        button.setAttribute('aria-pressed', String(index === currentIndex));
+        button.setAttribute('aria-label', `Pilih ${char.name}`);
+        button.addEventListener('click', () => selectCharacter(index));
+
+        const emoji = document.createElement('div');
+        emoji.className = 'text-4xl sm:text-5xl mb-2';
+        emoji.textContent = char.emoji;
+
+        const name = document.createElement('div');
+        name.className = 'text-base sm:text-lg truncate';
+        name.textContent = char.name;
+
+        const id = document.createElement('div');
+        id.className = 'text-xs font-kosugi text-gray-600 mt-1';
+        id.textContent = `ID: #${char.id}`;
+
+        button.append(emoji, name, id);
+        container.appendChild(button);
+      });
+    }
+
+    function updateCharacterDisplay() {
+      const char = characters[currentIndex];
+      setText('char-id', char.id);
+      setText('char-name-badge', char.badgeName);
+      setText('char-title-name', char.name);
+      setText('char-nickname', char.nickname);
+      setText('char-age', char.age);
+      setText('char-personality', char.personality);
+      setText('char-background', char.background);
+      setText('char-abilities', char.abilities);
+      setText('char-facts', char.facts);
+      setText('char-emoji', char.emoji);
+
+      const frame = $('char-frame');
+      frame.style.backgroundColor = char.color;
+      const info = $('character-info');
+      info.classList.remove('pop-in');
+      void info.offsetWidth;
+      info.classList.add('pop-in');
+      $('char-emoji').classList.remove('shake');
+      void $('char-emoji').offsetWidth;
+      $('char-emoji').classList.add('shake');
+
+      renderThumbnails();
+    }
+
+    function selectCharacter(index) {
+      if (!Number.isInteger(index)) return;
+      currentIndex = (index + characters.length) % characters.length;
+      updateCharacterDisplay();
+    }
+    function nextCharacter() { selectCharacter(currentIndex + 1); playBlip(620); }
+    function prevCharacter() { selectCharacter(currentIndex - 1); playBlip(420); }
+
+    // POPUP SYSTEM
+    function showPopup(title, message, icon = '⚡') {
+      popupPreviousFocus = document.activeElement;
+      setText('popup-title', title);
+      setText('popup-message', message);
+      setText('popup-icon', icon);
+      $('retro-popup').classList.remove('hidden');
+      $('popup-ack').focus();
+    }
+    function closePopup() {
+      $('retro-popup').classList.add('hidden');
+      if (popupPreviousFocus && typeof popupPreviousFocus.focus === 'function') {
+        popupPreviousFocus.focus();
+      }
+    }
+
+    // TOAST
+    function showToast(message) {
+      const toast = $('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    // EASTER EGGS
+    function triggerEasterEgg() {
+      easterEggCount++;
+      const messages = [
+        ['KABOOM MODE ACTIVATED!', 'Kamu baru saja melepaskan ledakan energi digital. Keep exploring!', '💥'],
+        ['SECRET POWER FOUND!', 'Tidak semua rahasia terlihat pada pandangan pertama. Coba klik panel-panel di bawah!', '⚡'],
+        ['ACHIEVEMENT UNLOCKED!', 'Achievement: Curious Explorer. Kamu punya insting penjelajah yang hebat!', '🏆'],
+        ['ULTIMATE KABOOM!', 'Semua sistem berjalan maksimal. Terima kasih sudah menjelajahi MANGA KABOOM!', '🚀']
+      ];
+      const item = messages[(easterEggCount - 1) % messages.length];
+      showPopup(item[0], item[1], item[2]);
+      document.body.classList.remove('shake');
+      void document.body.offsetWidth;
+      document.body.classList.add('shake');
+      playBlip(760);
+    }
+
+    function inspectSecretFiles() {
+      const char = characters[currentIndex];
+      showPopup(`SECRET ARCHIVE // FILE ${char.id}`,
+        `${char.name} — ${char.nickname}. Abilities: ${char.abilities} File ini telah berhasil dibuka. Jangan sebarkan ke pihak luar!`,
+        '🔐');
+      playBlip(540);
+    }
+
+    // LIGHTWEIGHT SYNTHETIC AMBIENT AUDIO (no external audio file required)
+    function startAudio() {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) {
+        showToast('Audio tidak didukung browser ini.');
+        return;
+      }
+      if (!audioContext) audioContext = new AudioCtx();
+      if (audioContext.state === 'suspended') audioContext.resume();
+
+      const master = audioContext.createGain();
+      master.gain.value = 0.035;
+      master.connect(audioContext.destination);
+
+      const frequencies = [110, 164.81, 220];
+      audioNodes = frequencies.map((frequency, i) => {
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.type = i === 1 ? 'triangle' : 'sine';
+        oscillator.frequency.value = frequency;
+        gain.gain.value = i === 0 ? 0.45 : 0.16;
+        oscillator.connect(gain);
+        gain.connect(master);
+        oscillator.start();
+        return { oscillator, gain };
+      });
+      audioNodes.push({ master });
+      audioPlaying = true;
+      $('audio-btn').textContent = '♫ BGM: ON';
+      $('audio-btn').setAttribute('aria-pressed', 'true');
+      setText('vol-status', 'LOW');
+    }
+
+    function stopAudio() {
+      audioNodes.forEach(node => {
+        try {
+          if (node.oscillator) node.oscillator.stop();
+          if (node.gain) node.gain.disconnect();
+        } catch (_) {}
+      });
+      audioNodes = [];
+      audioPlaying = false;
+      $('audio-btn').textContent = '♫ BGM: OFF';
+      $('audio-btn').setAttribute('aria-pressed', 'false');
+      setText('vol-status', 'MUTED');
+    }
+
+    function toggleAudio() {
+      if (audioPlaying) stopAudio();
+      else startAudio();
+    }
+
+    function playBlip(frequency = 520) {
+      if (!audioContext || !audioPlaying) return;
+      try {
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(Math.max(120, frequency / 2), audioContext.currentTime + 0.09);
+        gain.gain.setValueAtTime(0.045, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.11);
+      } catch (_) {}
+    }
+
+    // SCROLL PROGRESS / BACK TO TOP
+    let scrollTicking = false;
+    window.addEventListener('scroll', () => {
+      if (scrollTicking) return;
+      scrollTicking = true;
+      requestAnimationFrame(() => {
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = maxScroll > 0 ? (window.scrollY / maxScroll) * 100 : 0;
+        $('scroll-progress').style.width = `${progress}%`;
+        $('back-to-top').classList.toggle('hidden', window.scrollY < 300);
+        scrollTicking = false;
+      });
+    }, { passive: true });
+
+    function scrollToTop() {
+      window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }
+
+    // TOUCH SWIPE ON CHARACTER FRAME
+    $('char-frame').addEventListener('touchstart', event => {
+      touchStartX = event.changedTouches[0].screenX;
+    }, { passive: true });
+    $('char-frame').addEventListener('touchend', event => {
+      if (touchStartX === null) return;
+      const delta = event.changedTouches[0].screenX - touchStartX;
+      if (Math.abs(delta) > 45) delta < 0 ? nextCharacter() : prevCharacter();
+      touchStartX = null;
+    }, { passive: true });
+
+    // EVENT LISTENERS
+    $('start-reading').addEventListener('click', dismissLoading);
+    $('audio-btn').addEventListener('click', toggleAudio);
+    $('kaboom-btn').addEventListener('click', triggerEasterEgg);
+    $('back-to-top').addEventListener('click', scrollToTop);
+    $('prev-char').addEventListener('click', prevCharacter);
+    $('next-char').addEventListener('click', nextCharacter);
+    $('inspect-btn').addEventListener('click', inspectSecretFiles);
+    $('explore-btn').addEventListener('click', () => $('character-section').scrollIntoView({ behavior: 'smooth' }));
+    $('popup-close-x').addEventListener('click', closePopup);
+    $('popup-ack').addEventListener('click', closePopup);
+    $('retro-popup').addEventListener('click', event => {
+      if (event.target === $('retro-popup')) closePopup();
+    });
+    document.querySelectorAll('.panel-trigger').forEach(panel => {
+      panel.addEventListener('click', () => {
+        showPopup(panel.dataset.title, panel.dataset.message, panel.dataset.icon);
+        playBlip(680);
+      });
+    });
+    $('footer-secret').addEventListener('click', () => {
+      showPopup('YOU FOUND THE LAST SECRET!', 'The real treasure is the curiosity you brought along. See you in the next chapter!', '🌟');
+    });
+
+    // KEYBOARD CONTROLS
+    document.addEventListener('keydown', event => {
+      if (!$('retro-popup').classList.contains('hidden')) {
+        if (event.key === 'Escape') closePopup();
+        return;
+      }
+      const tag = document.activeElement?.tagName;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
+      if (event.key === 'ArrowRight') nextCharacter();
+      if (event.key === 'ArrowLeft') prevCharacter();
+    });
+
+    // INITIALIZE
+    document.addEventListener('DOMContentLoaded', () => {
+      setText('current-year', new Date().getFullYear());
+      renderThumbnails();
+      updateCharacterDisplay();
+      startLoading();
+    });
+  </script>
+</body>
+</html>
